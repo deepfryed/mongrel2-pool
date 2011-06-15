@@ -1,0 +1,5 @@
+pkg/*
+.yardoc
+doc/*
+test/tmp/*
+test/*.sqlite*

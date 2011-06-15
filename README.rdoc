@@ -1,0 +1,34 @@
+= Mongrel2 Pool
+
+A simple rack-mongrel2 based app pool. 
+
+* fire up a master with a fixed pool size of workers.
+* increase of decrease worker pool.
+* stop, restart etc via signals.
+
+== Example
+
+    # myapp.rb
+    class MyApp
+      def self.call env
+        [200, {'Content-Type' => 'text/plain'}, ['hello world', $/]]
+      end
+    end
+
+    # config.ru
+    require 'mongrel2-pool'
+    require 'myapp'
+
+    Mongrel2::Pool.run('myapp', MyApp, size: 5, logfile: '/tmp/mongrel2-pool.log')
+    
+    # running.
+    rackup --pid /tmp/mongrel2-pool.pid config.ru
+
+    # increase worker pool by 1
+    kill -TTIN `cat /tmp/mongrel2-pool.pid` 
+
+    # decrease worker pool by 1
+    kill -TTOU `cat /tmp/mongrel2-pool.pid` 
+
+    # TODO restarting
+    kill -HUP `cat /tmp/mongrel2-pool.pid` 
