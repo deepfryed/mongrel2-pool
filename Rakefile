@@ -11,7 +11,9 @@ begin
     gem.authors     = ["Bharanee Rathna"]
     gem.files.reject!{|f| f =~ %r{\.gitignore|examples/.*}}
 
-    gem.add_dependency 'rack-mongrel2'
+    gem.add_dependency 'zmq'
+    gem.add_dependency 'rack'
+    gem.add_dependency 'yajl-ruby'
     gem.add_development_dependency 'minitest', '>= 1.7.0'
   end
   Jeweler::GemcutterTasks.new

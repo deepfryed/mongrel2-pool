@@ -32,3 +32,12 @@ A simple rack-mongrel2 based app pool.
 
     # TODO restarting
     kill -HUP `cat /tmp/mongrel2-pool.pid` 
+
+= Credits
+
+The Rack handler code bundled along is from the https://github.com/darkhelmet/rack-mongrel2. It has been updated to
+work with zmq instead of using ffi-zmq.
+
+= License
+
+{Creative Commons Attribution - CC BY}[http://creativecommons.org/licenses/by/3.0]
