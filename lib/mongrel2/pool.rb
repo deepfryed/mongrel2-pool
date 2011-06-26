@@ -155,9 +155,7 @@ module Mongrel2
         Signal.trap('CHLD') do
           unless halting?
             begin
-              pid = Process.wait
-              error "got SIGCHLD for worker #{pid}, spawning one more"
-              reap_dead(pid)
+              error "got SIGCHLD for worker, spawning one more"
             rescue Errno::ECHILD => e
               error "got SIGCHLD and an exception #{e.message} - #{e.backtrace.join("\n")}"
             end
@@ -178,6 +176,7 @@ module Mongrel2
           workers.each do |pid|
             running = Process.kill(0, pid) rescue nil
             next if running
+            info "reaping worker #{pid}"
             workers.delete(pid)
           end
         end
@@ -207,12 +206,13 @@ module Mongrel2
 
       def terminate_one pid, signal
         info "terminating worker [#{pid}]"
-        Process.kill(signal, pid)
+        Process.kill(signal, pid) rescue nil
         ensure_killed(pid, 0.1, 10)
       end
 
       def terminate_all signal
         workers.each {|pid| terminate_one(pid, signal) }
+        workers.clear
       end
 
       def quit
@@ -231,9 +231,10 @@ module Mongrel2
         terminate_all('KILL')
         if mongrel2_pid
           info "terminating mongrel2 [#{mongrel2_pid}]"
-          Process.kill('TERM', mongrel2_pid)
+          Process.kill('TERM', mongrel2_pid) rescue nil
           FileUtils.rm_f(mongrel2_db)
         end
+        exit
       end
 
       def halting?
@@ -242,7 +243,9 @@ module Mongrel2
 
       def ensure_killed pid, wait, timeout
         while wait < timeout
-          break if Process.kill(0, pid) rescue nil
+          Process.wait(pid, Process::WNOHANG) rescue nil
+          running = Process.kill(0, pid) rescue nil
+          break unless running
           sleep(wait *= 2)
         end
 
