@@ -15,8 +15,7 @@ module Rack
 
           raise ArgumentError.new('Must specify an :uuid or set RACK_MONGREL2_UUID') if options[:uuid].nil?
 
-          conn = ::Mongrel2::Connection.new(options[:uuid], options[:recv], options[:send])
-
+          conn    = ::Mongrel2::Connection.new(options[:uuid], options[:recv], options[:send])
           running = true
 
           # This doesn't work at all until zmq fixes their shit (in 2.1.x I think), but trap it now anyway.

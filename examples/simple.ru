@@ -1,4 +1,4 @@
-$:.unshift File.dirname(__FILE__) + '/lib'
+$:.unshift File.dirname(__FILE__) + '/../lib'
 
 class MyApp
   def self.call env
@@ -7,4 +7,6 @@ class MyApp
 end
 
 require 'mongrel2-pool'
-Mongrel2::Pool.run('testapp', MyApp, size: 2, isolate: true)
+Mongrel2::Pool.run('testapp', MyApp, size: 2, isolate: true) do |pid|
+  # do any post fork setup here like connecting to db.
+end

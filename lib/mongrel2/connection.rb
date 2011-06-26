@@ -4,14 +4,8 @@ require 'mongrel2/response'
 
 module Mongrel2
   class Connection
-    @context = nil
-
-    def self.context
-      @context ||= ZMQ::Context.new(1)
-    end
-
     def context
-      self.class.context
+      @context ||= ZMQ::Context.new(1)
     end
 
     def initialize(uuid, sub, pub)
