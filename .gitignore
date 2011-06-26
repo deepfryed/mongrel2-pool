@@ -3,3 +3,6 @@ pkg/*
 doc/*
 test/tmp/*
 test/*.sqlite*
+tmp/*
+!tmp/.keepthis
+
