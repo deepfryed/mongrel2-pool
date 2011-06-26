@@ -155,13 +155,22 @@ module Mongrel2
         Signal.trap('CHLD') do
           unless halting?
             begin
-              error "got SIGCHLD for worker, spawning one more"
+              error "got SIGCHLD"
             rescue Errno::ECHILD => e
               error "got SIGCHLD and an exception #{e.message} - #{e.backtrace.join("\n")}"
             end
-            reap_dead
-            one_more
+            (reap_dead && one_more) || mongrel2_respawn
           end
+        end
+      end
+
+      def mongrel2_respawn
+        if isolate && mongrel2_pid
+          running = Process.kill(0, mongrel2_pid) rescue nil
+          return if running
+          FileUtils.rm_f(mongrel2_db)
+          error "looks like mongrel2 died, spawning another one"
+          mongrel2_run
         end
       end
 
@@ -173,12 +182,15 @@ module Mongrel2
         if pid
           workers.delete(pid)
         else
+          reaped = 0
           workers.each do |pid|
             running = Process.kill(0, pid) rescue nil
             next if running
             info "reaping worker #{pid}"
             workers.delete(pid)
+            reaped += 1
           end
+          reaped > 0
         end
       end
 

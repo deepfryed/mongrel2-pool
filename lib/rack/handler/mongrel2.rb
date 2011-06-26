@@ -70,7 +70,7 @@ module Rack
             context = ZMQ::Context.new(1)
             queue   = context.socket(ZMQ::PUSH)
 
-            queue.bind("ipc://shutdown_queue")
+            queue.bind(conn.shutdown_queue)
             queue.send("shutdown")
 
             queue.close

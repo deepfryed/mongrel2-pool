@@ -22,7 +22,11 @@ module Mongrel2
 
       # Shutdown queue
       @shutdown = context.socket(ZMQ::PULL)
-      @shutdown.connect('ipc://shutdown_queue')
+      @shutdown.connect(shutdown_queue)
+    end
+
+    def shutdown_queue
+      "ipc://shutdown_queue_#{hash.abs}"
     end
 
     def receive
