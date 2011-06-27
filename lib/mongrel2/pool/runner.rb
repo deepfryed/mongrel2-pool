@@ -79,6 +79,16 @@ class Mongrel2::Pool
       end
     end
 
+    def more
+      raise "Mongrel2::Pool - Not running" unless running?
+      Process.kill('TTIN', pid.to_i)
+    end
+
+    def less
+      raise "Mongrel2::Pool - Not running" unless running?
+      Process.kill('TTOU', pid.to_i)
+    end
+
     # TODO this might not be portable across unix flavors.
     def kill_workers
       pids = %x{ps --ppid #{pid}}.split(/\n+/).map {|line| line.sub(%r{^\s*(\d+)\s+.*}, '\\1').to_i}

@@ -27,6 +27,8 @@ def usage
     stop      stops the server pool.
     restart   graceful restart of server pool.
     kill      kill the server and workers, smite them with fiery vengeance.
+    more      add one more worker to pool.
+    less      reduce worker pool by one.
 
   }
 end
@@ -58,10 +60,8 @@ require 'mongrel2-pool'
 require 'mongrel2/pool/runner'
 
 case ARGV.last
-  when 'start'   then Mongrel2::Pool.runner(rackfile, config).start
-  when 'stop'    then Mongrel2::Pool.runner(rackfile, config).stop
-  when 'restart' then Mongrel2::Pool.runner(rackfile, config).restart
-  when 'kill'    then Mongrel2::Pool.runner(rackfile, config).kill
+  when *%w(start stop restart kill more less)
+    Mongrel2::Pool.runner(rackfile, config).send(ARGV.last)
   else
     if ARGV.last.nil? or ARGV.last.empty?
       puts "ERROR: missing command [start|stop|restart|kill]"
