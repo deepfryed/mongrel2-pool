@@ -1,4 +1,5 @@
 require 'zmq'
+require 'fileutils'
 require 'mongrel2/request'
 require 'mongrel2/response'
 
@@ -48,7 +49,7 @@ module Mongrel2
     def close
       @responder.close
       @receiver.close
-       @shutdown.close
+      @shutdown.close
       context.close rescue nil
     end
   end

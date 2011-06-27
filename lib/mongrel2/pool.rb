@@ -5,40 +5,49 @@ require 'tempfile'
 require 'fileutils'
 require 'socket'
 
+MONGREL2_POOL_STARTUP = $0 + ' ' + ARGV.join(' ') unless defined? MONGREL2_POOL_STARTUP
+
 module Mongrel2
   class Pool
-
+    attr_reader :logfile
     DEFAULTS = {size: 1, pidfile: '/tmp/mongrel2-pool.pid', logfile: $stdout}
 
     def initialize uuid, klass, options = {}, &block
       options = DEFAULTS.merge(options)
-      File::Pid.new(options[:pidfile], Process.pid).run do
-        @workers    = []
-        @uuid       = uuid
-        @klass      = klass
-        @after_fork = block
-        @size       = options[:size]
-        @isolate    = options[:isolate]
-        @logger     = Logger.new(options[:logfile], 0)
+      @pidfile    = options[:pidfile]
+      @workers    = []
+      @uuid       = uuid
+      @klass      = klass
+      @after_fork = block
+      @size       = options[:size]
+      @isolate    = options[:isolate]
+      @daemon     = options[:daemon]
+      @logfile    = options[:logfile]
+      @logger     = Logger.new(@logfile, 0)
+    end
 
-        info "initialized with pool size #{size}"
-      end
+    def daemon?
+      !!@daemon
     end
 
     def self.run *args, &block
-      new(*args, &block).run
-      Process.waitall
-    end
-
-    def run
-      trap_signals
-      mongrel2_run if isolate
-      size.times { one_more }
+      pool = new(*args, &block)
+      pool.send(:run)
+      Process.waitall rescue nil
     end
 
     private
-      attr_reader :uuid, :logger, :size, :workers, :klass, :isolate, :after_fork
+      attr_reader :uuid, :logger, :size, :workers, :klass, :isolate, :after_fork, :pidfile
       attr_reader :mongrel2_pid, :mongrel2_db
+
+      def run
+        info "firing up pool with size #{size}"
+        File::Pid.new(pidfile, Process.pid)
+
+        trap_signals
+        mongrel2_run if isolate
+        size.times { one_more }
+      end
 
       def mongrel2_run
         @isolate = {} unless isolate.kind_of?(Hash)
@@ -162,6 +171,39 @@ module Mongrel2
             (reap_dead && one_more) || mongrel2_respawn
           end
         end
+
+        # TODO nasty, should be a better way.
+        Signal.trap('HUP') do
+          @halting = true
+          reset_signal_handlers
+          mongrel2_stop
+
+          FileUtils.mv(pidfile, pidfile + '.old') rescue nil
+
+          if $stdout.tty?
+            hangup!
+            exec MONGREL2_POOL_STARTUP
+          else
+            fork do
+              Process.daemon(true, true)
+              exec MONGREL2_POOL_STARTUP
+            end
+            hangup!
+            Kernel.exit!
+          end
+
+          FileUtils.rm_f(pidfile + '.old')
+        end
+      end
+
+      def hangup!
+        @halting = true
+        info "got SIGHUP, doing a graceful restart"
+        terminate_all('QUIT')
+      end
+
+      def reset_signal_handlers
+        %w(TTIN TTOU HUP QUIT TERM INT CHLD).each {|sig| Signal.trap(sig, 'DEFAULT')}
       end
 
       def mongrel2_respawn
@@ -174,8 +216,12 @@ module Mongrel2
         end
       end
 
-      def reset_signal_handlers
-        %w(TTIN TTOU QUIT TERM INT CHLD).each {|sig| Signal.trap(sig, 'DEFAULT')}
+      def mongrel2_stop
+        if mongrel2_pid
+          info "terminating mongrel2 [#{mongrel2_pid}]"
+          Process.kill('QUIT', mongrel2_pid)
+          FileUtils.rm_f(mongrel2_db)
+        end
       end
 
       def reap_dead pid = nil
@@ -225,27 +271,22 @@ module Mongrel2
       def terminate_all signal
         workers.each {|pid| terminate_one(pid, signal) }
         workers.clear
+        FileUtils.rm_f('shutdown_queue_*')
       end
 
       def quit
         @halting = true
         terminate_all('QUIT')
-        if mongrel2_pid
-          info "terminating mongrel2 [#{mongrel2_pid}]"
-          Process.kill('QUIT', mongrel2_pid)
-          FileUtils.rm_f(mongrel2_db)
-        end
+        mongrel2_stop
+        FileUtils.rm_f(pidfile)
         exit
       end
 
       def kill
         @halting = true
         terminate_all('KILL')
-        if mongrel2_pid
-          info "terminating mongrel2 [#{mongrel2_pid}]"
-          Process.kill('TERM', mongrel2_pid) rescue nil
-          FileUtils.rm_f(mongrel2_db)
-        end
+        mongrel2_stop
+        FileUtils.rm_f(pidfile)
         exit
       end
 
@@ -254,11 +295,13 @@ module Mongrel2
       end
 
       def ensure_killed pid, wait, timeout
-        while wait < timeout
+        waited = 0
+        while waited < timeout
           Process.wait(pid, Process::WNOHANG) rescue nil
           running = Process.kill(0, pid) rescue nil
           break unless running
-          sleep(wait *= 2)
+          sleep(wait)
+          waited += wait
         end
 
         Process.kill('KILL', pid) rescue nil

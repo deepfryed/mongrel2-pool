@@ -61,31 +61,34 @@ module Rack
                 conn.reply(req, '500 Internal Server Error', 500, {})
               end
             end
-        end
-
-        # thanks to, http://www.ioncannon.net/programming/1384/example-mongrel2-handler-in-ruby/
-        %w(INT TERM QUIT HUP).each do |name|
-          Signal.trap(name) do
-            running = false
-            context = ZMQ::Context.new(1)
-            queue   = context.socket(ZMQ::PUSH)
-
-            queue.bind(conn.shutdown_queue)
-            queue.send("shutdown")
-
-            queue.close
-            context.close
-
-            handler.kill if handler.alive?
-            conn.close
           end
+
+          # thanks to, http://www.ioncannon.net/programming/1384/example-mongrel2-handler-in-ruby/
+          %w(INT TERM QUIT HUP).each do |name|
+            Signal.trap(name) do
+              running = false
+              shutdown(conn)
+              handler.kill if handler.alive?
+            end
+          end
+
+          handler.join if handler.alive?
+          ensure
+            conn.close if conn.respond_to?(:close)
         end
 
-        handler.join
-        ensure
+        def shutdown conn
+          context = ZMQ::Context.new(1)
+          queue   = context.socket(ZMQ::PUSH)
+
+          queue.bind(conn.shutdown_queue)
+          queue.send("shutdown")
+
+          queue.close
+          context.close
           conn.close if conn.respond_to?(:close)
         end
-      end
-    end
-  end
-end
+      end # self
+    end # Mongrel2
+  end # Handler
+end # Rack
