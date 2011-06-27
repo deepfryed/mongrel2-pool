@@ -1,15 +1,16 @@
+require 'rack'
 require 'mongrel2-pool'
+require 'mongrel2/pool/config'
+
 class Mongrel2::Pool
-  @instance = nil
-
-  def self.run *args, &block
-    @instance = new(*args, &block)
-  end
-
   class Runner
     attr_reader :instance
-    def initialize instance
-      @instance = instance
+
+    def initialize rackup_file, config_file
+      app        = Rack::Builder.parse_file(rackup_file)
+      config     = Mongrel2::Pool::Config.parse_file(config_file)
+      after_fork = config.delete(:after_fork)
+      @instance  = Mongrel2::Pool.new(config.delete(:uuid), app, config, &after_fork)
     end
 
     def running?
@@ -84,9 +85,9 @@ class Mongrel2::Pool
       pids.shift
       pids.each {|id| Process.kill('KILL', id) rescue nil}
     end
-  end
+  end # Runner
 
-  def self.runner
-    Runner.new(@instance)
+  def self.runner rackup_file, config_file
+    Runner.new(rackup_file, config_file)
   end
-end
+end # Mongrel2::Pool

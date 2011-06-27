@@ -3,8 +3,27 @@
 A simple rack-mongrel2 based app pool. 
 
 * fire up a master with a fixed pool size of workers.
-* increase of decrease worker pool.
+* increase or decrease worker pool.
 * stop, restart etc via signals.
+
+== Dependencies
+
+* {mongrel2}[https://github.com/zedshaw/mongrel2]
+* {zmq}[https://github.com/zeromq/rbzmq]
+* {yajl}[https://github.com/brianmario/yajl-ruby]
+
+== Try it
+
+    # Console 1
+    cd mongrel2-pool
+    ./bin/mongrel2 -Ilib start
+
+    # Console 2
+    curl -v http://localhost:4000/
+    ./bin/mongrel2 -Ilib restart
+    ./bin/mongrel2 -Ilib more
+    ./bin/mongrel2 -Ilib less
+    
 
 == Example
 
@@ -16,23 +35,35 @@ A simple rack-mongrel2 based app pool.
     end
 
     # config.ru
-    require 'mongrel2-pool'
     require 'myapp'
+    run MyApp
 
-    Mongrel2::Pool.run('myapp', MyApp, size: 5, logfile: '/tmp/mongrel2-pool.log')
+    # config.rb
+    size      2
+    uuid      'myapp'
+    isolate   true     # run a separate instance of mongrel2 with default settings.
+    listen    4000
+    pidfile   '/tmp/mongrel2-pool.pid'
+
+    after_fork do |pid|
+      # do any post fork setup here like connecting to db.
+    end
     
     # running.
-    rackup --pid /tmp/mongrel2-pool.pid config.ru
+    ./bin/mongrel2-pool -R config.ru -C config.rb start
 
     # increase worker pool by 1
     kill -TTIN `cat /tmp/mongrel2-pool.pid` 
+    ./bin/mongrel2-pool -R config.ru -C config.rb more
 
     # decrease worker pool by 1
     kill -TTOU `cat /tmp/mongrel2-pool.pid` 
+    ./bin/mongrel2-pool -R config.ru -C config.rb less
 
-    # TODO restarting
-    kill -HUP `cat /tmp/mongrel2-pool.pid` 
-
+    # stop, restart
+    ./bin/mongrel2-pool -R config.ru -C config.rb stop
+    ./bin/mongrel2-pool -R config.ru -C config.rb restart
+   
 = Credits
 
 The Rack handler code bundled along is from the https://github.com/darkhelmet/rack-mongrel2. It has been updated to

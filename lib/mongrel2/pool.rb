@@ -9,8 +9,8 @@ MONGREL2_POOL_STARTUP = $0 + ' ' + ARGV.join(' ') unless defined? MONGREL2_POOL_
 
 module Mongrel2
   class Pool
-    attr_reader :logfile
-    DEFAULTS = {size: 1, pidfile: '/tmp/mongrel2-pool.pid', logfile: $stdout}
+    attr_accessor :logfile
+    DEFAULTS = {uuid: 'purplemonkey', size: 1, pidfile: '/tmp/mongrel2-pool.pid', logfile: $stdout}
 
     def initialize uuid, klass, options = {}, &block
       options = DEFAULTS.merge(options)

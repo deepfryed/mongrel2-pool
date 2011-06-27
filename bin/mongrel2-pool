@@ -7,6 +7,7 @@ MONGREL2_POOL_STARTUP = $0 + ' ' + ARGV.join(' ')
 paths    = []
 help     = false
 rackfile = Dir.pwd + '/config.ru'
+config   = Dir.pwd + '/config.rb'
 
 def usage
   %q{
@@ -17,7 +18,8 @@ def usage
 
     -h        displays this help.
     -I path   include this path.
-    -R name   use this rackfile, defaults to config.ru in current directory.
+    -R path   use this rackfile, defaults to config.ru in current directory.
+    -C path   use this config file for mongrel2-pool options.
 
     command can be one of
 
@@ -31,8 +33,9 @@ end
 
 parser = OptionParser.new do |opt|
   opt.on('-h',      '--help')                  { help = true }
-  opt.on('-I name', '--include  name', String) {|name| paths   << name }
-  opt.on('-R name', '--rackfile file', String) {|name| rackfile = name }
+  opt.on('-I path', '--include  path', String) {|name| paths   << name }
+  opt.on('-R file', '--rackup   file', String) {|name| rackfile = name }
+  opt.on('-C file', '--config   file', String) {|name| config   = name }
 end
 
 begin
@@ -55,10 +58,10 @@ require 'mongrel2-pool'
 require 'mongrel2/pool/runner'
 
 case ARGV.last
-  when 'start'   then load(rackfile) && Mongrel2::Pool.runner.start
-  when 'stop'    then load(rackfile) && Mongrel2::Pool.runner.stop
-  when 'restart' then load(rackfile) && Mongrel2::Pool.runner.restart
-  when 'kill'    then load(rackfile) && Mongrel2::Pool.runner.kill
+  when 'start'   then Mongrel2::Pool.runner(rackfile, config).start
+  when 'stop'    then Mongrel2::Pool.runner(rackfile, config).stop
+  when 'restart' then Mongrel2::Pool.runner(rackfile, config).restart
+  when 'kill'    then Mongrel2::Pool.runner(rackfile, config).kill
   else
     if ARGV.last.nil? or ARGV.last.empty?
       puts "ERROR: missing command [start|stop|restart|kill]"
