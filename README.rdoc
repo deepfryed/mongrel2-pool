@@ -11,6 +11,7 @@ A simple rack-mongrel2 based app pool.
 * {mongrel2}[https://github.com/zedshaw/mongrel2]
 * {zmq}[https://github.com/zeromq/rbzmq]
 * {yajl}[https://github.com/brianmario/yajl-ruby]
+* {rack}[https://github.com/rack/rack]
 
 == Try it
 
